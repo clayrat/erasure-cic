@@ -49,6 +49,7 @@ vendor/elim-inductive-types/theories/Data/Nat.v
 vendor/elim-inductive-types/theories/Data/Lists.v
 vendor/elim-inductive-types/theories/Data/Tree.v
 vendor/elim-inductive-types/theories/Data/Positivity.v
+vendor/elim-inductive-types/theories/Data/Logic.v
 vendor/elim-inductive-types/theories/Data/W.v
 vendor/elim-inductive-types/theories/Programs/Direct.v
 vendor/elim-inductive-types/theories/Programs/Half.v
