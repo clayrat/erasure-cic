@@ -5,8 +5,9 @@
 
 # The kernel, from the submodule nested in elim-inductive-types (the only
 # copy of it in the build paths): the modules elim-inductive-types builds.
-# Its Contracts.v needs the PCF translation and strictness-pcf, which are
-# not built here.
+# Its contracts of lecture 6 (theories/Contracts.v) need the PCF translation
+# and strictness-pcf, which are not built here; those of the kernel
+# (theories/PTS/Contracts.v) are.
 vendor/elim-inductive-types/vendor/pts-dependent-types/theories/Common/Result.v
 vendor/elim-inductive-types/vendor/pts-dependent-types/theories/Common/Traced.v
 vendor/elim-inductive-types/vendor/pts-dependent-types/theories/PTS/Syntax.v
@@ -21,6 +22,7 @@ vendor/elim-inductive-types/vendor/pts-dependent-types/theories/PTS/Typing.v
 vendor/elim-inductive-types/vendor/pts-dependent-types/theories/PTS/Bidir.v
 vendor/elim-inductive-types/vendor/pts-dependent-types/theories/PTS/Check.v
 vendor/elim-inductive-types/vendor/pts-dependent-types/theories/PTS/CheckSound.v
+vendor/elim-inductive-types/vendor/pts-dependent-types/theories/PTS/Contracts.v
 vendor/elim-inductive-types/vendor/pts-dependent-types/theories/Configs/Finite.v
 vendor/elim-inductive-types/vendor/pts-dependent-types/theories/Configs/Predicative.v
 vendor/elim-inductive-types/vendor/pts-dependent-types/theories/SystemU/Looping.v
