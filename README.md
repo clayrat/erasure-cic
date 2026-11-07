@@ -39,3 +39,7 @@ make clean
 | Component | Status |
 |---|---|
 | branches `cic`, tags `lecture-7`, build through the nested submodule | done |
+| contracts of the kernel (`PTS/Contracts.v`, without the PCF translation) and of the declarations, checked by `make assumptions` | done: 17 proved, axiom-free |
+| stage 1: Prop beside the predicative hierarchy, Σ by its own table, the table λC (in the kernel) | done in the kernel's `Configs/` and `CIC/Impredicative.v`, with the native reference and the differential test |
+| four tables on one checker | `theories/Examples/Tables.v`: the same terms in ∗ and □ under U⁻, λC, the predicative hierarchy and the hierarchy with Prop |
+| the examples of Hirrolot's CoC gist on λC | `theories/Examples/CoCGist.v`: Church numerals and `add` with its equations, pairs, vectors by assumption, `concat` by computing the length, `zip` of different lengths rejected with the gist's error, U⁻ rejecting the context |
