@@ -1,0 +1,4 @@
+[submodule "vendor/elim-inductive-types"]
+	path = vendor/elim-inductive-types
+	url = git@github.com:clayrat/elim-inductive-types.git
+	branch = cic
