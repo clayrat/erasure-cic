@@ -15,7 +15,12 @@
     proved contracts are the pieces that hold by construction: the rules
     of the target evaluator, the soundness of the decision of
     observations, and the erased signature as the erasure of each
-    entry. *)
+    entry.
+
+    The last section holds the contracts of the milestone of universes
+    (stage 7), a separate checker with its own language: the contract of
+    erasure is about the kernel with numeric levels and does not carry
+    over to it. *)
 
 From Stdlib Require Import String List Relations.
 Import ListNotations.
@@ -145,3 +150,123 @@ Definition erasure_total : Prop :=
   forall sg t T, wf_checked sg -> btype predicative_prop sg [] T -> chk predicative_prop sg [] t T ->
   exists n, forall m, n <= m ->
     exists e se, erase_term predicative_prop sg m [] t T = Erased e /\ erase_env predicative_prop sg m = Erased se.
+
+(** ** The milestone of universes (stage 7)
+
+    The checker of theories/Universes is separate from the kernel; its
+    contracts are about levels, constraints and their graph.  Proved:
+    the operations on levels and the normal form keep the value; the
+    fragment of constraints decomposes exactly into edges, and a
+    constraint with a max on the right is accepted only when entailed;
+    the answers of the graph are certificates — a model, or a cycle of
+    positive weight that no valuation satisfies, and for entailment a
+    cycle with the negation or a counter-model; the context closed for
+    a definition is satisfiable and implies the declared constraints and
+    every requirement, and in a rigid declaration it is the declared one;
+    cumulativity at sorts requires [ℓ₁ ≤ ℓ₂] and conversion [ℓ₁ = ℓ₂].
+
+    Open: that the graph never answers [Unknown] (the completeness of
+    Bellman–Ford with its certificates), and that an accepted
+    polymorphic constant is accepted at every closed instance satisfying
+    its context.  No declarative judgment with cumulativity is stated for
+    this language; the relation of the checker to one is outside the
+    milestone. *)
+
+From Stdlib Require Import Bool Arith ZArith Lia.
+From CIC.Universes Require Import Level Graph Constraints Term Check.
+
+Definition level_operations : Prop :=
+  forall v l l',
+    leval v (lnorm l) = leval v l /\
+    leval v (lsucc l) = S (leval v l) /\
+    leval v (lmax l l') = Nat.max (leval v l) (leval v l').
+
+Theorem level_operations_holds : level_operations.
+Proof.
+  intros v l l'. split; [apply lnorm_sound | split; [apply lsucc_sound | apply lmax_sound]].
+Qed.
+
+Definition constraint_fragment : Prop :=
+  forall c,
+    (forall es, decompose c = Some es -> forall v, models v es <-> csat v c) /\
+    (forall G, implied G c = true -> forall v, models v G -> csat v c).
+
+Theorem constraint_fragment_holds : constraint_fragment.
+Proof. intros c. split; [exact (decompose_sound c) | intros G; exact (implied_sound G c)]. Qed.
+
+Definition graph_verdicts : Prop :=
+  forall G,
+    (forall m, solve G = Consistent m -> models (val_of m) G) /\
+    (forall c, solve G = Cycle c -> forall v, ~ models v G) /\
+    (forall e c, entails G e = Entailed c -> forall v, models v G -> edge_sat v e) /\
+    (forall e m, entails G e = Refuted m -> models (val_of m) G /\ ~ edge_sat (val_of m) e).
+
+Theorem graph_verdicts_holds : graph_verdicts.
+Proof.
+  intros G. split; [exact (solve_consistent G) | split; [exact (solve_cycle G) | split]].
+  - intros e c. exact (entails_entailed G e c).
+  - intros e m. exact (entails_refuted G e m).
+Qed.
+
+Definition context_closure : Prop :=
+  forall md C R ctx m, close_context md C R = Ok (ctx, m) ->
+    Forall (csat (val_of m)) ctx /\
+    (forall v, Forall (csat v) ctx -> Forall (csat v) C /\ Forall (csat v) R) /\
+    (md = Rigid -> ctx = C).
+
+Theorem context_closure_holds : context_closure.
+Proof. intros md C R ctx m. exact (close_context_sound md C R ctx m). Qed.
+
+(** Cumulativity at sorts is directed, conversion is not: the
+    requirements collected make [ℓ₁ ≤ ℓ₂], respectively [ℓ₁ = ℓ₂], hold
+    in every valuation satisfying them. *)
+Definition cumulativity_sorts : Prop :=
+  forall sg f l1 l2 cs cs',
+    (cumul sg (S (S f)) (USort l1) (USort l2) cs = Ok (tt, cs') ->
+       forall v, Forall (csat v) cs' -> leval v l1 <= leval v l2) /\
+    (conv sg (S (S f)) (USort l1) (USort l2) cs = Ok (tt, cs') ->
+       forall v, Forall (csat v) cs' -> leval v l1 = leval v l2).
+
+Lemma req_le_sound : forall l1 l2 cs cs', req_le l1 l2 cs = Ok (tt, cs') ->
+  forall v, Forall (csat v) cs' -> leval v l1 <= leval v l2.
+Proof.
+  intros l1 l2 cs cs' H v Hv. unfold req_le in H. destruct (lle_syn l1 l2) eqn:E.
+  - exact (lle_syn_sound v l1 l2 E).
+  - unfold emit in H. injection H as <-. apply Forall_app in Hv as [_ Hc].
+    inversion Hc as [|? ? Hs _]; subst. unfold csat in Hs; cbn [c_lhs c_off c_rhs cle] in Hs. lia.
+Qed.
+
+Lemma req_eq_sound : forall l1 l2 cs cs', req_eq l1 l2 cs = Ok (tt, cs') ->
+  forall v, Forall (csat v) cs' -> leval v l1 = leval v l2.
+Proof.
+  intros l1 l2 cs cs' H v Hv. unfold req_eq in H. destruct (lsame l1 l2) eqn:E.
+  - unfold lsame in E. apply andb_prop in E as [E1 E2].
+    pose proof (lle_syn_sound v _ _ E1). pose proof (lle_syn_sound v _ _ E2). lia.
+  - unfold mbind, emit in H. injection H as <-.
+    apply Forall_app in Hv as [Hv H2]. apply Forall_app in Hv as [_ H1].
+    inversion H1 as [|? ? Hs1 _]; inversion H2 as [|? ? Hs2 _]; subst.
+    unfold csat in Hs1, Hs2; cbn [c_lhs c_off c_rhs cle] in Hs1, Hs2. lia.
+Qed.
+
+Theorem cumulativity_sorts_holds : cumulativity_sorts.
+Proof.
+  intros sg f l1 l2 cs cs'. split; intros H.
+  - change (req_le l1 l2 cs = Ok (tt, cs')) in H. exact (req_le_sound _ _ _ _ H).
+  - change (req_eq l1 l2 cs = Ok (tt, cs')) in H. exact (req_eq_sound _ _ _ _ H).
+Qed.
+
+(** *** Open *)
+
+(** Bellman–Ford with [|V|] rounds always finds a model or a cycle whose
+    certificate checks. *)
+Definition graph_solve_complete : Prop := forall G, solve G <> Unknown.
+
+(** Polymorphism means every instance: an accepted constant, at closed
+    levels given by a valuation satisfying its context, is accepted in
+    the empty rigid context, for some budget. *)
+Definition instances_accepted : Prop :=
+  forall cumulative sg fuel dc d m,
+    check_decl cumulative sg fuel dc = Ok (d, m) ->
+    forall v, Forall (csat v) (ud_cstrs d) ->
+    exists fuel' r, check_term cumulative sg fuel' [] [] Rigid
+                      (ulsubst (closed_map v d) (ud_body d)) (ulsubst (closed_map v d) (ud_type d)) = Ok r.

@@ -72,4 +72,12 @@ theories/Erasure/Erase.v
 theories/Erasure/Observe.v
 theories/Erasure/Checked.v
 theories/Erasure/Examples.v
+
+# The milestone of universes (stage 7): a separate checker with levels.
+theories/Universes/Level.v
+theories/Universes/Graph.v
+theories/Universes/Constraints.v
+theories/Universes/Term.v
+theories/Universes/Check.v
+theories/Universes/Examples.v
 theories/Contracts.v
