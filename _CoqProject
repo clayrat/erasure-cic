@@ -19,6 +19,7 @@ vendor/elim-inductive-types/vendor/pts-dependent-types/theories/PTS/SubstLaws.v
 vendor/elim-inductive-types/vendor/pts-dependent-types/theories/PTS/NormalOrder.v
 vendor/elim-inductive-types/vendor/pts-dependent-types/theories/PTS/Eval.v
 vendor/elim-inductive-types/vendor/pts-dependent-types/theories/PTS/EvalSrc.v
+vendor/elim-inductive-types/vendor/pts-dependent-types/theories/PTS/Guard.v
 vendor/elim-inductive-types/vendor/pts-dependent-types/theories/PTS/Typing.v
 vendor/elim-inductive-types/vendor/pts-dependent-types/theories/PTS/Bidir.v
 vendor/elim-inductive-types/vendor/pts-dependent-types/theories/PTS/Check.v
@@ -33,6 +34,7 @@ vendor/elim-inductive-types/vendor/pts-dependent-types/theories/MLTT/Choose.v
 vendor/elim-inductive-types/vendor/pts-dependent-types/theories/MLTT/Constants.v
 vendor/elim-inductive-types/vendor/pts-dependent-types/theories/MLTT/Families.v
 vendor/elim-inductive-types/vendor/pts-dependent-types/theories/CIC/Match.v
+vendor/elim-inductive-types/vendor/pts-dependent-types/theories/CIC/Guard.v
 
 # The declarations and recursion of lecture 7, without their own Tests.v.
 vendor/elim-inductive-types/theories/Telescope.v
@@ -63,3 +65,4 @@ vendor/elim-inductive-types/theories/Contracts.v
 theories/Contracts.v
 theories/Examples/Tables.v
 theories/Examples/CoCGist.v
+theories/Examples/Paired.v
