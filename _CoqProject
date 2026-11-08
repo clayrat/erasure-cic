@@ -62,9 +62,14 @@ vendor/elim-inductive-types/theories/Programs/Rejected.v
 vendor/elim-inductive-types/theories/Programs/Copy.v
 vendor/elim-inductive-types/theories/Contracts.v
 
-theories/Contracts.v
 theories/Examples/Tables.v
 theories/Examples/CoCGist.v
 theories/Examples/Paired.v
 theories/Equality/Transport.v
 theories/Equality/Plus2.v
+theories/Erasure/Target.v
+theories/Erasure/Erase.v
+theories/Erasure/Observe.v
+theories/Erasure/Checked.v
+theories/Erasure/Examples.v
+theories/Contracts.v
