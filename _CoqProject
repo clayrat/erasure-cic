@@ -66,3 +66,5 @@ theories/Contracts.v
 theories/Examples/Tables.v
 theories/Examples/CoCGist.v
 theories/Examples/Paired.v
+theories/Equality/Transport.v
+theories/Equality/Plus2.v
