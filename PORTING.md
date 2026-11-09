@@ -8,8 +8,8 @@ re-checked by this project's build.
 
 | Dependency | Where | Pinned commit | Use |
 |---|---|---|---|
-| [elim-inductive-types](https://github.com/clayrat/elim-inductive-types) | `vendor/elim-inductive-types` (git submodule) | `8d46f0f` on the branch `cic`, after `lecture-7` = `a822b8c` | Declarations, classification, the generator of eliminators and the compiler of lecture 7, built under the prefix `IndTypes` without its `Tests.v`. Edited on its branch `cic`: the level of a declaration becomes a sort, fields are checked by sort, `elim_class` and the declarations of stage 2; the term traversals and examples following `match` and `fix` of the kernel. |
-| [pts-dependent-types](https://github.com/clayrat/pts-dependent-types) | `vendor/elim-inductive-types/vendor/pts-dependent-types` (the submodule nested in elim-inductive-types; not a submodule of this repository) | `07268dd` on the branch `cic`, after `lecture-7` = `fd7f98a` | The kernel, built under the prefix `DepTypes` with the modules elim-inductive-types lists. Edited on its branch `cic`: Prop, `Case`, `Fix` and the guard. Of its contracts only `PTS/Contracts.v` is built here; its `Contracts.v` of lecture 6 needs the PCF translation and strictness-pcf. |
+| [elim-inductive-types](https://github.com/clayrat/elim-inductive-types) | `vendor/elim-inductive-types` (git submodule) | `7a60465` on the branch `cic`, after `lecture-7` = `a822b8c` | Declarations, classification, the generator of eliminators and the compiler of lecture 7, built under the prefix `IndTypes` without its `Tests.v`. Edited on its branch `cic`: the level of a declaration becomes a sort, fields are checked by sort, `elim_class` and the declarations of stage 2; the term traversals and examples following `match` and `fix` of the kernel. |
+| [pts-dependent-types](https://github.com/clayrat/pts-dependent-types) | `vendor/elim-inductive-types/vendor/pts-dependent-types` (the submodule nested in elim-inductive-types; not a submodule of this repository) | `4cb4b2c` on the branch `cic`, after `lecture-7` = `fd7f98a` | The kernel, built under the prefix `DepTypes` with the modules elim-inductive-types lists. Edited on its branch `cic`: Prop, `Case`, `Fix` and the guard; `run_infer_open` in its native reference, for the native erasure here. Of its contracts only `PTS/Contracts.v` is built here; its `Contracts.v` of lecture 6 needs the PCF translation and strictness-pcf. |
 
 ## Ported files
 
@@ -19,4 +19,7 @@ None yet.
 
 | Here | Source | Commit | Changes |
 |---|---|---|---|
-| `Makefile`, `_CoqProject`, `.gitignore` | elim-inductive-types, the same files | `a822b8c` | the kernel's and the declarations' modules listed from the nested paths; no extraction or reference targets yet |
+| `Makefile`, `_CoqProject`, `.gitignore` | elim-inductive-types, the same files | `a822b8c` | the kernel's and the declarations' modules listed from the nested paths; the targets `extract`, `demo`, `test` and `frame` added at stage 8 |
+| `extraction/Extract.v`, `extraction/Makefile`, `extraction/dune`, `extraction/dune-project` | elim-inductive-types, `extraction/` | `7a60465` | the export list extended with the examples of this project and erasure; a second extraction, `universes.ml`, for the milestone of universes; the printers of both submodules copied into `generated/` at build time, unchanged |
+| `extraction/main.ml`, `extraction/regress.ml` | elim-inductive-types, `extraction/main.ml` and `regress.ml` | `7a60465` | the helpers `header`, `line` and the conversions by normal order with their redexes followed; the demonstrations and checks are new |
+| `reference/Makefile` | elim-inductive-types, `reference/Makefile` | `7a60465` | the native files of erasure and the target; the kernel's `extracted.ml` reused for its conversions |

@@ -17,6 +17,27 @@
     observations, and the erased signature as the erasure of each
     entry.
 
+    The three tiers of readiness of the plan:
+    - tier 1, reached: the executable kernel with fuel, extracted
+      (extraction/), with regression tests and the native references
+      compared with the extract (reference/); the acceptance of [Case],
+      [Fix] and the guard proved sound for the subterm relation
+      (PTS/Contracts.v of the kernel); [eval_src], [eval_erased], erasure
+      and the erasure of signatures implemented and checked on examples;
+    - tier 2, not reached: the contract of erasure proved, with its
+      obligations below.  Its proof needs subject reduction for CIC with
+      [match] and [fix] ([source_preservation]), hence confluence and the
+      injectivity of Π, open in the kernel, before the simulation itself.
+      The pairing of the equations and closed results of [fix]/[match]
+      with the compiler of lecture 7, also of this tier, is done
+      (Examples/Paired.v);
+    - tier 3: the obligations of the section "Beyond the contract",
+      stated as types of statements with the external results they rest
+      on, never as axioms.
+    Erasure removes no arguments ([□] keeps their positions), so the
+    optimization of argument removal has no contract; the milestone of
+    universes has its own, in the last section.
+
     The last section holds the contracts of the milestone of universes
     (stage 7), a separate checker with its own language: the contract of
     erasure is about the kernel with numeric levels and does not carry
@@ -25,7 +46,7 @@
 From Stdlib Require Import String List Relations.
 Import ListNotations.
 From DepTypes.Common Require Import Result.
-From DepTypes.PTS Require Import Syntax Spec Signature Reduction EvalSrc Bidir Check.
+From DepTypes.PTS Require Import Syntax Spec Signature Reduction EvalSrc Typing Bidir Check.
 From DepTypes.Configs Require Import Predicative.
 From DepTypes.PTS Require Export Contracts.
 From IndTypes Require Export Contracts.
@@ -144,12 +165,80 @@ Definition erasure_simulation : Prop :=
     erase_env predicative_prop sg fuel = Erased se ->
     exists fdst w, eval_erased se fdst e = CbvValue w /\ value_observation sg T v w.
 
+(** ** Beyond the contract (tier 3)
+
+    Obligations that the contract does not need and does not give, each
+    with the external result it corresponds to.  None is used by a proved
+    theorem.  The references:
+    - [Werner 1994]: B. Werner, Une théorie des constructions inductives,
+      thèse, Université Paris 7, 1994 — strong normalization of CIC with
+      eliminators;
+    - [Giménez 1995]: E. Giménez, Codifying guarded definitions with
+      recursive schemes, TYPES 1994, LNCS 996 — guarded [fix] translated
+      into eliminators;
+    - [Letouzey 2004]: P. Letouzey, Programmation fonctionnelle certifiée :
+      l'extraction de programmes dans l'assistant Coq, thèse, Université
+      Paris-Sud, 2004 — the correctness of extraction, and its semantic
+      side for values beyond data;
+    - [MetaCoq 2020]: M. Sozeau, S. Boulier, Y. Forster, N. Tabareau,
+      T. Winterhalter, Coq Coq Correct! Verification of type checking and
+      erasure for Coq, in Coq, POPL 2020 — erasure correct for weak
+      call-by-value evaluation, normalization taken as an axiom; its
+      presentation in Touring the MetaCoq Project, LFMTP 2021, §5;
+    - [Forster, Sozeau, Tabareau 2024]: Verified extraction from Coq to
+      OCaml, PLDI 2024 — erasure preserving first-order values of
+      inductive types. *)
+
+(** Normalization of CIC with the guard, for the evaluator by value: a
+    closed checked program of a checked signature reaches a value with
+    some budget.  With the progress of [eval_src] (an open obligation of
+    the kernel) it rests on [Werner 1994] for the eliminators and on
+    [Giménez 1995] for the guarded [fix]; [MetaCoq 2020] assumes it. *)
+Definition cbv_normalization : Prop :=
+  forall sg t T, wf_checked sg -> chk predicative_prop sg [] t T ->
+  exists n v, eval_src sg n t = CbvValue v.
+
 (** Erasure is total with enough fuel on checked terms of a checked
-    signature: a separate obligation, not a premise of the contract. *)
+    signature: a separate obligation, not a premise of the contract.  It
+    rests on the normalization of types, which [is_arity] and the sorts
+    unfold, as the decision [isErasable] of [MetaCoq 2020] does. *)
 Definition erasure_total : Prop :=
   forall sg t T, wf_checked sg -> btype predicative_prop sg [] T -> chk predicative_prop sg [] t T ->
   exists n, forall m, n <= m ->
     exists e se, erase_term predicative_prop sg m [] t T = Erased e /\ erase_env predicative_prop sg m = Erased se.
+
+(** A wider class of observations: any value of the source without λ and
+    [fix] — constructors of any declaration, pairs, the primitives, with
+    types and proofs inside — is reached by the erased program exactly as
+    its own erasure, not only for the observable types of the contract.
+    The first-order values of [Forster, Sozeau, Tabareau 2024]; beyond
+    them, functions need the semantic relation of [Letouzey 2004].
+    Tested on the thirteen programs of the contract (extraction/regress.ml). *)
+Fixpoint lambda_free (t : term) : bool :=
+  match t with
+  | Lam _ | Fix _ _ _ | Case _ _ _ _ _ => false
+  | Pi a b | Sigma a b | App a b | Ann a b | Pair a b | ElimVoid a b => lambda_free a && lambda_free b
+  | ElimUnit a b c => lambda_free a && lambda_free b && lambda_free c
+  | ElimBool a b c d => lambda_free a && lambda_free b && lambda_free c && lambda_free d
+  | Fst p | Snd p => lambda_free p
+  | Srt _ | Var _ | Void | Unit | Tt | Bool | BTrue | BFalse | Const _ => true
+  end.
+
+Definition erasure_first_order : Prop :=
+  forall sg t T fenv ferase fsrc se e v,
+    wf_checked sg -> btype predicative_prop sg [] T -> chk predicative_prop sg [] t T ->
+    erase_env predicative_prop sg fenv = Erased se ->
+    erase_term predicative_prop sg ferase [] t T = Erased e ->
+    eval_src sg fsrc t = CbvValue v -> lambda_free v = true ->
+    exists fdst fv w, eval_erased se fdst e = CbvValue w /\ erase_term predicative_prop sg fv [] v T = Erased w.
+
+(** The link with declarative typing: a program the kernel checked in a
+    checked signature is typed by the declarative rules of PTS/Typing.v,
+    against which [MetaCoq 2020] states erasure.  It follows from
+    [bidir_declarative_sound] of the kernel, open, once a checked
+    signature is shown type-correct ([signature_typed]). *)
+Definition checked_declarative : Prop :=
+  forall sg t T, wf_checked sg -> chk predicative_prop sg [] t T -> has_type predicative_prop sg [] t T.
 
 (** ** The milestone of universes (stage 7)
 

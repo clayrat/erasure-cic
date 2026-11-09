@@ -3,7 +3,7 @@ ELIM := vendor/elim-inductive-types
 KERNEL := $(ELIM)/vendor/pts-dependent-types
 COQFLAGS := -Q $(KERNEL)/theories DepTypes -Q $(ELIM)/theories IndTypes -Q theories CIC
 
-.PHONY: all rocq assumptions check clean
+.PHONY: all rocq extract demo test frame assumptions check clean
 all: rocq
 
 $(KERNEL)/theories/PTS/Syntax.v:
@@ -15,6 +15,24 @@ Makefile.coq: _CoqProject
 
 rocq: $(KERNEL)/theories/PTS/Syntax.v Makefile.coq
 	$(MAKE) -f Makefile.coq
+
+# The extracted kernel, declarations, erasure and universes: the
+# demonstrations of the lecture (make demo), the regression tests of the
+# extract and the differential test of the native erasure, target
+# evaluator and guard against it (make test), and the spare frame of
+# Acc_rect straight from Rocq (make frame).
+extract:
+	$(MAKE) -C extraction extract
+
+demo:
+	$(MAKE) -C extraction run
+
+test:
+	$(MAKE) -C extraction test
+	$(MAKE) -C reference test
+
+frame:
+	$(MAKE) -C extraction frame
 
 # Every proved contract of the kernel, of the declarations and of this
 # project is closed under the global context: no axioms.  theories/Contracts.v
@@ -36,9 +54,11 @@ assumptions: rocq
 	    echo "assumptions: $$closed contracts closed under the global context"; \
 	  else echo "$$out"; echo "assumptions: only $$closed of $$expected contracts are axiom-free"; exit 1; fi
 
-check: rocq assumptions
+check: rocq assumptions test
 
 clean:
 	@if test -f Makefile.coq; then $(MAKE) -f Makefile.coq clean; fi
+	$(MAKE) -C extraction clean
+	$(MAKE) -C reference clean
 	rm -f Makefile.coq Makefile.coq.conf .Makefile.coq.d
 	rm -rf checks

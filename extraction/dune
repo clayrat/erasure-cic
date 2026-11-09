@@ -1,0 +1,31 @@
+; generated/ holds the output of Extract.v and the printers of the
+; submodules; it is rebuilt by make and never edited by hand.
+(copy_files generated/{deptypes.ml,deptypes.mli,universes.ml,universes.mli,pretty.ml,pretty_ind.ml})
+
+(library
+ (name deptypes)
+ (wrapped false)
+ (modules deptypes)
+ (flags (:standard -w -a)))
+
+(library
+ (name universes)
+ (wrapped false)
+ (modules universes)
+ (flags (:standard -w -a)))
+
+(library
+ (name cic_pretty)
+ (wrapped false)
+ (modules pretty pretty_ind pretty_erased pretty_univ pretty_cic)
+ (libraries deptypes universes))
+
+(executable
+ (name main)
+ (modules main)
+ (libraries deptypes universes cic_pretty))
+
+(test
+ (name regress)
+ (modules regress)
+ (libraries deptypes universes cic_pretty))
