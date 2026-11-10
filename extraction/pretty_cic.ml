@@ -47,6 +47,7 @@ let rec abbrev ?(known = []) t =
 let abbrev_guard ?(known = []) = function
   | GPartialCall c -> GPartialCall (abbrev ~known c)
   | GNotSubterm (c, a) -> GNotSubterm (abbrev ~known c, abbrev ~known a)
+  | GShortBody b -> GShortBody (abbrev ~known b)
 
 let abbrev_error ?(known = []) e =
   let ab = abbrev ~known in

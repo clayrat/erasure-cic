@@ -15,7 +15,7 @@
     names OCaml strings. *)
 
 From Stdlib Require Import Extraction ExtrOcamlBasic ExtrOcamlNatInt ExtrOcamlNativeString ExtrOcamlZInt.
-From DepTypes.PTS Require Import Syntax Named Spec Signature Eval EvalSrc Guard Check.
+From DepTypes.PTS Require Import Syntax Telescope Named Spec Signature Eval EvalSrc Guard Check.
 From DepTypes.Configs Require Import Finite Predicative.
 From DepTypes.SystemU Require Import Looping Encodings.
 From DepTypes.MLTT Require Import Choose Constants Families.
@@ -23,7 +23,7 @@ From IndTypes.Elim Require Import Decl Generate Declare.
 From IndTypes.Data Require Import Nat Lists Tree W Primitives Positivity Logic.
 From IndTypes.Recursion Require Import Below CaseTree Compile.
 From IndTypes.Programs Require Import Direct Half Append Rejected Copy.
-From DepTypes.CIC Require Match Guard.
+From DepTypes.CIC Require Match GuardExamples.
 From CIC.Examples Require Tables CoCGist Paired.
 From CIC.Equality Require Transport Plus2.
 From CIC.Erasure Require Import Target Erase Observe Checked.
@@ -31,7 +31,7 @@ From CIC.Erasure Require Examples.
 From CIC.Universes Require Level Graph Constraints Term Check Examples.
 
 (** Unique names for examples whose names other modules use too. *)
-Definition guard_half := Guard.half.
+Definition guard_half := GuardExamples.half.
 Definition gist_zero := CoCGist.zero.
 Definition gist_succ := CoCGist.succ.
 Definition gist_add := CoCGist.add.
@@ -65,10 +65,10 @@ Extraction "deptypes.ml"
   infer check run_infer run_check
   observe
   nat_desc elim_nat_ty vec_desc w_desc sg_nat sg_families nat_w zero_w succ_w types_ctx choose choose_ty
-  Match.match_fuel Match.nat_rect_ty Match.nat_rect Match.rect_ctx Match.plus_fix Match.sg_match Match.numeral
+  Match.match_fuel Match.nat_rect_ty Match.nat_rect Match.rect_ctx Match.plus_fix Match.sg_match Match.nat_numeral
   Match.append Match.copy Match.boolp_desc Match.sg_boolp Match.loop
-  guard_half Guard.size Guard.under_binders Guard.g_pred Guard.partial Guard.bare Guard.nested Guard.shadowed
-  Guard.guard_of Guard.nonrec_field Guard.half_position
+  guard_half GuardExamples.size GuardExamples.under_binders GuardExamples.g_pred GuardExamples.partial GuardExamples.bare GuardExamples.nested GuardExamples.shadowed
+  GuardExamples.guard_of GuardExamples.nonrec_field GuardExamples.half_position
   (* the declarations of lectures 7 and 8 *)
   classify_decl sort_class sort_level motive_type method_type elim_type iota_rules
   within elim_class_of

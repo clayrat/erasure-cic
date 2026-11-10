@@ -250,13 +250,25 @@ let () =
 
 (* ── the guard ── *)
 
+let guard_raw name sg k b =
+  let extracted = X.guard_fix sg k b in
+  saw
+    (match extracted with
+    | X.Ok () -> "guarded"
+    | X.Err (X.GPartialCall _) -> "guard: partial call"
+    | X.Err (X.GNotSubterm _) -> "guard: not a subterm"
+    | X.Err (X.GShortBody _) -> "guard: short body");
+  compare name (guard_result_to_extracted (N.guard_fix (signature_of_extracted sg) k (term_of_extracted b))) extracted
+
 let guard_both name sg t =
   match X.build [] t with
-  | X.Fix (_, k, b) ->
-      let extracted = X.guard_fix sg k b in
-      saw (match extracted with X.Ok () -> "guarded" | X.Err (X.GPartialCall _) -> "guard: partial call" | X.Err (X.GNotSubterm _) -> "guard: not a subterm");
-      compare name (guard_result_to_extracted (N.guard_fix (signature_of_extracted sg) k (term_of_extracted b))) extracted
+  | X.Fix (_, k, b) -> guard_raw name sg k b
   | _ -> compare name "not a fix" ""
+
+(* bodies short of their k + 1 leading λ, which no checked fix has *)
+let () =
+  guard_raw "a body without its λ" X.sig_empty 0 (X.Var 0);
+  guard_raw "a body short of its second λ" X.sg_nat 1 (X.Lam (X.Var 0))
 
 let () =
   List.iter
