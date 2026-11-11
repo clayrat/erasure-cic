@@ -9,6 +9,7 @@
 # and strictness-pcf, which are not built here; those of the kernel
 # (theories/PTS/Contracts.v) are.
 vendor/elim-inductive-types/vendor/pts-dependent-types/theories/Common/Result.v
+vendor/elim-inductive-types/vendor/pts-dependent-types/theories/Common/Lists.v
 vendor/elim-inductive-types/vendor/pts-dependent-types/theories/Common/Traced.v
 vendor/elim-inductive-types/vendor/pts-dependent-types/theories/Common/Outcome.v
 vendor/elim-inductive-types/vendor/pts-dependent-types/theories/PTS/Syntax.v
@@ -20,13 +21,23 @@ vendor/elim-inductive-types/vendor/pts-dependent-types/theories/PTS/Spec.v
 vendor/elim-inductive-types/vendor/pts-dependent-types/theories/PTS/Signature.v
 vendor/elim-inductive-types/vendor/pts-dependent-types/theories/PTS/Reduction.v
 vendor/elim-inductive-types/vendor/pts-dependent-types/theories/PTS/SubstLaws.v
+vendor/elim-inductive-types/vendor/pts-dependent-types/theories/PTS/Confluence.v
 vendor/elim-inductive-types/vendor/pts-dependent-types/theories/PTS/NormalOrder.v
 vendor/elim-inductive-types/vendor/pts-dependent-types/theories/PTS/Eval.v
 vendor/elim-inductive-types/vendor/pts-dependent-types/theories/PTS/EvalSrc.v
 vendor/elim-inductive-types/vendor/pts-dependent-types/theories/PTS/Guard.v
 vendor/elim-inductive-types/vendor/pts-dependent-types/theories/PTS/GuardSound.v
+vendor/elim-inductive-types/vendor/pts-dependent-types/theories/PTS/GuardSubst.v
 vendor/elim-inductive-types/vendor/pts-dependent-types/theories/PTS/Typing.v
+vendor/elim-inductive-types/vendor/pts-dependent-types/theories/PTS/TypingSubst.v
+vendor/elim-inductive-types/vendor/pts-dependent-types/theories/PTS/GuardRed.v
+vendor/elim-inductive-types/vendor/pts-dependent-types/theories/PTS/Inversion.v
+vendor/elim-inductive-types/vendor/pts-dependent-types/theories/PTS/SubjectRed.v
 vendor/elim-inductive-types/vendor/pts-dependent-types/theories/PTS/Bidir.v
+vendor/elim-inductive-types/vendor/pts-dependent-types/theories/PTS/BidirSound.v
+vendor/elim-inductive-types/vendor/pts-dependent-types/theories/PTS/Monotone.v
+vendor/elim-inductive-types/vendor/pts-dependent-types/theories/PTS/ConstRename.v
+vendor/elim-inductive-types/vendor/pts-dependent-types/theories/PTS/Values.v
 vendor/elim-inductive-types/vendor/pts-dependent-types/theories/PTS/Check.v
 vendor/elim-inductive-types/vendor/pts-dependent-types/theories/PTS/CheckSound.v
 vendor/elim-inductive-types/vendor/pts-dependent-types/theories/PTS/Contracts.v
@@ -52,6 +63,13 @@ vendor/elim-inductive-types/theories/Elim/Declare.v
 vendor/elim-inductive-types/theories/Recursion/Below.v
 vendor/elim-inductive-types/theories/Recursion/CaseTree.v
 vendor/elim-inductive-types/theories/Recursion/Compile.v
+vendor/elim-inductive-types/theories/Checked/Steps.v
+vendor/elim-inductive-types/theories/Checked/Walk.v
+vendor/elim-inductive-types/theories/Checked/Invariants.v
+vendor/elim-inductive-types/theories/Checked/Shaped.v
+vendor/elim-inductive-types/theories/Checked/IotaTyped.v
+vendor/elim-inductive-types/theories/Checked/SigTyped.v
+vendor/elim-inductive-types/theories/Checked/Fields.v
 vendor/elim-inductive-types/theories/Data/Sigma.v
 vendor/elim-inductive-types/theories/Data/Primitives.v
 vendor/elim-inductive-types/theories/Data/Nat.v
@@ -73,9 +91,16 @@ theories/Examples/Paired.v
 theories/Equality/Transport.v
 theories/Equality/Plus2.v
 theories/Erasure/Target.v
+theories/Erasure/TargetSubst.v
 theories/Erasure/Erase.v
 theories/Erasure/Observe.v
-theories/Erasure/Checked.v
+theories/Erasure/Relation.v
+theories/Erasure/RelationSubst.v
+theories/Erasure/Simulation.v
+theories/Erasure/Observation.v
+theories/Erasure/EraseSound.v
+theories/Erasure/EnvRelated.v
+theories/Erasure/Preservation.v
 theories/Erasure/Examples.v
 
 # The milestone of universes (stage 7): a separate checker with levels.

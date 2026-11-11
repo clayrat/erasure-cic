@@ -9,12 +9,17 @@
    by its own type.  A match on a proposition is a singleton (its branch
    applied to □ for each field) or empty (no branches); any other
    elimination of a proposition into a type is refused, or kept on data in
-   the demonstration of BypassElim.  The sort of a type is found from its
-   weak-head form, without inferring its subterms.  Running out of fuel
+   the demonstration of BypassElim.  An instance into Prop is a proof: □,
+   even when the decision missed it.  The sort of a type is found from its
+   weak-head form, without inferring its subterms; for a match, the type
+   of its scrutinee must unfold to its family.  Running out of fuel
    on the way is UndecidedAt with the stage it happened in, not a guess.
 
    The types of subterms come from the kernel's [infer], in a context
-   taken as checked ([run_infer_open]), as in Rocq. *)
+   taken as checked ([infer_open_answer]), as in Rocq; those of the
+   prefixes of an application all at once ([infer_spine_open_answer]),
+   its head inferred once.  Both keep no trace, as [run_result] in
+   Erase.v. *)
 
 open Pts_native
 module T = Eval_erased_native
@@ -28,6 +33,7 @@ type error =
   | XIllegalElim of string * sort
   | XUnsupported of term
   | XInactive of string * sort
+  | XReserved of string
 
 type 'a erase_result = Erased of 'a | NotErasable of error | UndecidedAt of stage * term
 
@@ -46,6 +52,10 @@ let kind_of d =
 
 let efield_of = function FArg _ -> T.ENonRec | FRec (domains, _) -> T.ERec (List.length domains)
 
+(* The names of the primitive families of the target: a declaration under
+   one of them would shadow the primitive in the erased signature. *)
+let reserved_name d = d = T.prim_unit || d = T.prim_bool || d = T.prim_void
+
 let erase_ind d =
   { T.eind_name = d.ind_name;
     eind_params = List.length d.ind_params;
@@ -58,8 +68,14 @@ let lookup_ctx g n = match List.nth_opt g n with Some a -> Some (lift (n + 1) a)
 
 let erasure spec sg fuel strict =
   let infer g t =
-    match snd (run_infer_open ~sg spec fuel g t) with
+    match infer_open_answer ~sg spec fuel g t with
     | Accepted a -> Ok a
+    | Rejected e -> fail (XIllTyped (t, e))
+    | Undecided u -> Error (Short (AtType, u))
+  in
+  let infer_spine g t =
+    match infer_spine_open_answer ~sg spec fuel g t with
+    | Accepted types -> Ok types
     | Rejected e -> fail (XIllTyped (t, e))
     | Undecided u -> Error (Short (AtType, u))
   in
@@ -112,9 +128,12 @@ let erasure spec sg fuel strict =
               | Some i ->
                   let* xt = infer g x in
                   let* xv = whnf AtSort xt in
-                  let us = drop (List.length i.ind_params) (snd (spine xv)) in
-                  let* k = instantiate (apps p (us @ [ x ])) args in
-                  sort_at t k
+                  let np = List.length i.ind_params in
+                  let xh, xs = spine xv in
+                  if xh = Const (Ind d) && List.length xs = np + List.length i.ind_indices then
+                    let* k = instantiate (apps p (drop np xs @ [ x ])) args in
+                    sort_at t k
+                  else fail (XShape (x, xv))
               | None -> bad)
           | h ->
               let* ht = head_type g h in
@@ -156,16 +175,19 @@ let erasure spec sg fuel strict =
           let* a, bt = as_pi t ty in
           let* b' = erase (a :: g) b bt in
           Ok (T.ELam b')
-      | App (f, a) ->
-          let* ft = infer g f in
-          let* dom, _ = as_pi f ft in
-          let* f' = erase g f ft in
-          let* a' = erase g a dom in
-          Ok (T.EApp (f', a'))
+      | App (f, a) -> (
+          let* types = infer_spine g f in
+          match types with
+          | ft :: fts ->
+              let* dom, _ = as_pi f ft in
+              let* f' = erase_spine g f ft fts in
+              let* a' = erase g a dom in
+              Ok (T.EApp (f', a'))
+          | [] -> fail (XUnsupported t))
       | Ann (u, a) -> erase g u a
       | Const (Def f) -> Ok (T.EConst f)
       | Const (Ctor (d, c)) -> Ok (T.ECtor (d, c))
-      | Const (Elim (d, s)) -> Ok (T.EPrim (d, s))
+      | Const (Elim (d, s)) -> if s = Prp then Ok T.EBox else Ok (T.EPrim (d, s))
       | Tt -> Ok (T.ECtor (T.prim_unit, "tt"))
       | BTrue -> Ok (T.ECtor (T.prim_bool, "true"))
       | BFalse -> Ok (T.ECtor (T.prim_bool, "false"))
@@ -214,9 +236,25 @@ let erasure spec sg fuel strict =
           let* b' = erase (a :: g) b (lift 1 a) in
           Ok (T.EFix (k, b'))
       | Srt _ | Pi _ | Sigma _ | Void | Unit | Bool | Const (Ind _) -> fail (XUnsupported t)
+  (* An application [f] at [ft], the types [fts] of its prefixes known:
+     [erase] on it, without inferring them again. *)
+  and erase_spine g f ft fts =
+    match f with
+    | App (f1, a1) -> (
+        let* er = erasable g ft in
+        if er then Ok T.EBox
+        else
+          match fts with
+          | ft1 :: fts1 ->
+              let* dom, _ = as_pi f1 ft1 in
+              let* f1' = erase_spine g f1 ft1 fts1 in
+              let* a1' = erase g a1 dom in
+              Ok (T.EApp (f1', a1'))
+          | [] -> fail (XUnsupported f))
+    | _ -> erase g f ft
   in
   let erase_entry = function
-    | EInd d -> Ok (T.EEInd (erase_ind d))
+    | EInd d -> if reserved_name d.ind_name then fail (XReserved d.ind_name) else Ok (T.EEInd (erase_ind d))
     | EElim (d, s, _, active) -> (
         if not active then fail (XInactive (d, s))
         else

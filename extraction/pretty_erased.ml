@@ -60,6 +60,7 @@ let pp_erase_error ?(depth = max_int) ?(names = []) e =
       "the elimination of " ^ d ^ " into " ^ pp_sort s ^ " is forbidden by its category"
   | XUnsupported t -> "erasure does not expect " ^ pp t
   | XInactive (d, s) -> "the instance " ^ pp_gref (Elim (d, s)) ^ " has no active rules"
+  | XReserved d -> "the declaration " ^ d ^ " takes the name of a primitive of the target"
 
 let pp_erase_result ?(depth = max_int) ?(names = []) pp_value = function
   | Erased a -> "erased: " ^ pp_value a

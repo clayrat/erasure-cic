@@ -22,11 +22,12 @@ From DepTypes.PTS Require Import Syntax Named Spec Signature Eval EvalSrc Check.
 From DepTypes.Configs Require Import Predicative.
 From DepTypes.SystemU Require Import Looping.
 From DepTypes.MLTT Require Import Choose Constants Families.
-From IndTypes.Elim Require Import Declare.
+From IndTypes.Elim Require Import Decl Declare.
 From IndTypes.Data Require Import Nat Lists Logic.
 From IndTypes.Programs Require Import Direct Append.
 From CIC.Equality Require Import Transport Plus2.
-From CIC.Erasure Require Import Target Erase Observe Checked.
+From IndTypes.Checked Require Import Steps.
+From CIC.Erasure Require Import Target Erase Observe.
 From IndTypes.Recursion Require Import CaseTree Compile.
 
 Open Scope string_scope.
@@ -364,6 +365,19 @@ Qed.
 
 Example vector_observable : Observable sg_demo (VecT NatT (build [] (num 3))).
 Proof.
-  eapply O_Vec; [apply rt_refl | vm_compute; reflexivity | ].
+  eapply O_Vec; [apply rt_refl | vm_compute; reflexivity | vm_compute; reflexivity | ].
   eapply O_Nat; [apply rt_refl | vm_compute; reflexivity].
 Qed.
+
+(** A declaration under the name of a primitive of the target, here an
+    empty type [prim.Bool], is accepted by the registration but refused
+    by erasure: below it the primitive Bool would be shadowed, and a
+    match on [true] would get stuck after erasure. *)
+Definition raw_shadow : raw_decl :=
+  {| rd_name := prim_bool; rd_params := []; rd_indices := []; rd_sort := Univ 0; rd_ctors := [] |}.
+
+Example shadow_refused :
+  option_map (fun sg => erase_env predicative_prop sg 100)
+    (registered (declare_checked predicative_prop 100 ∅ raw_shadow [])) =
+  Some (NotErasable (XReserved prim_bool)).
+Proof. vm_compute. reflexivity. Qed.

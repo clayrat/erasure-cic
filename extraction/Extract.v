@@ -26,7 +26,8 @@ From IndTypes.Programs Require Import Direct Half Append Rejected Copy.
 From DepTypes.CIC Require Match GuardExamples.
 From CIC.Examples Require Tables CoCGist Paired.
 From CIC.Equality Require Transport Plus2.
-From CIC.Erasure Require Import Target Erase Observe Checked.
+From IndTypes.Checked Require Import Steps.
+From CIC.Erasure Require Import Target Erase Observe.
 From CIC.Erasure Require Examples.
 From CIC.Universes Require Level Graph Constraints Term Check Examples.
 
@@ -102,7 +103,7 @@ Extraction "deptypes.ml"
   Examples.demo_run Examples.sg_demo Examples.se_demo Examples.enum Examples.erase_closed
   Examples.takes_family Examples.witness Examples.witness_ty Examples.ex_proof Examples.depth_args
   Examples.and_case Examples.from_false Examples.elim_true_two Examples.elim_true_partial
-  Examples.contract_on Examples.bool_case Examples.two_vec Examples.evec Examples.demo_steps Examples.sg_steps.
+  Examples.contract_on Examples.bool_case Examples.two_vec Examples.evec Examples.demo_steps Examples.sg_steps Examples.raw_shadow.
 
 Extraction "universes.ml"
   Level.lnorm Level.lplus Level.lsucc Level.lmax Level.lle_syn Level.lsame Level.lsubst Level.atoms_of

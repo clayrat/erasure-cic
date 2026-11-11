@@ -6,8 +6,10 @@ compared with the Rocq extract by a differential test on complete answers.
 They run on the kernel's native reference,
 `vendor/elim-inductive-types/vendor/pts-dependent-types/reference/pts_native.ml`:
 its signatures, weak-head reduction, and its checker's `infer` in a context
-taken as checked (`run_infer_open`), which erasure asks for the types of
-subterms.
+taken as checked (`infer_open_answer`), which erasure asks for the types
+of subterms, with `infer_spine` for the types of the prefixes of an
+application at once (`infer_spine_open_answer`); both without the trace,
+which erasure drops.
 
 `eval_erased_native.ml` follows `theories/Erasure/Target.v`: the erased
 terms, the erased signature (declarations with the shape of their fields and

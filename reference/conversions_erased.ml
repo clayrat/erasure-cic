@@ -120,6 +120,7 @@ let erase_error_to_extracted = function
   | E.XIllegalElim (d, s) -> X.XIllegalElim (d, sort_to_extracted s)
   | E.XUnsupported t -> X.XUnsupported (term_to_extracted t)
   | E.XInactive (d, s) -> X.XInactive (d, sort_to_extracted s)
+  | E.XReserved d -> X.XReserved d
 
 let erase_result_to_extracted value = function
   | E.Erased a -> X.Erased (value a)

@@ -11,7 +11,10 @@
      demonstration of BypassElim; each also for every fuel from 0 to 40,
      so that UndecidedAt agrees with its stage and its term;
    - erasure of signatures: those of the lecture, strict and bypassing,
-     and the signature of the demonstrations for every fuel up to 30;
+     and the signature of the demonstrations for every fuel up to 30; a
+     declaration under the name of each primitive of the target, alone
+     and after the demonstrations for every fuel up to 30, refused
+     (Examples.shadow_refused);
    - the target evaluator: the erased programs of the contract, with
      every fuel up to 60 and one large budget, values, stuck terms, □
      taking the place of proofs and types, and the positions of
@@ -56,6 +59,7 @@ let saw_erasure = function
   | X.NotErasable (X.XIllegalElim _) -> saw "not erasable: illegal elimination"
   | X.NotErasable (X.XUnsupported _) -> saw "not erasable: unsupported"
   | X.NotErasable (X.XInactive _) -> saw "not erasable: inactive"
+  | X.NotErasable (X.XReserved _) -> saw "not erasable: reserved name"
   | X.UndecidedAt (st, _) -> saw ("undecided at " ^ stage_name st)
 
 let saw_eval = function
@@ -190,6 +194,23 @@ let () =
       ("half", X.sg_half); ("append", X.sg_append); ("copy", X.sg_copy); ("BypassElim", X.sg_bypass) ];
   env_both ~strict:false "BypassElim, bypassing" X.sg_bypass 1000;
   for fuel = 0 to 30 do env_both (Printf.sprintf "the demonstrations, fuel %d" fuel) sg_demo fuel done
+
+(* A declaration under the name of a primitive of the target, the empty
+   type of Examples.raw_shadow: accepted by the registration, refused by
+   erasure.  After the demonstrations, whose entries are erased first, a
+   small fuel stops earlier. *)
+let () =
+  List.iter
+    (fun prim ->
+      let raw = { X.raw_shadow with X.rd_name = prim } in
+      let alone = sg_of (X.declare_checked spec_x 100 X.sig_empty raw []) in
+      let after = sg_of (X.declare_checked spec_x 100 sg_demo raw []) in
+      env_both ("a declaration " ^ prim) alone 1000;
+      env_both ~strict:false ("a declaration " ^ prim ^ ", bypassing") alone 1000;
+      for fuel = 0 to 30 do
+        env_both (Printf.sprintf "a declaration %s after the demonstrations, fuel %d" prim fuel) after fuel
+      done)
+    [ X.prim_unit; X.prim_bool; X.prim_void ]
 
 (* ── the target evaluator ── *)
 

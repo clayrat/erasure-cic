@@ -12,8 +12,11 @@
     - a λ unfolds [T] to a Π and erases its body at the codomain; a pair
       unfolds [T] to a Σ;
     - an application infers the type of its function and erases the
-      argument at the domain; an annotation gives its term a known type
-      and disappears;
+      argument at the domain; the types of all the prefixes of a spine
+      come from one run of the kernel ([infer_spine_e]), its head
+      inferred once and each argument checked once, so that a spine of
+      n arguments does not cost n inferences ([erase_spine]); an
+      annotation gives its term a known type and disappears;
     - a [match] on data stays a match, without its motive, each branch
       erased at the type of the branch of stage 3.  On a proposition, the
       result being in Type, the declaration must be a singleton or empty
@@ -24,7 +27,11 @@
       function, and drops its type;
     - the eliminators of Unit, Bool and Void become matches on the
       primitives of the target, their constructors constructors of it;
-    - constants stay constants.
+    - an instance into Prop is a proof and becomes [□] even when the
+      decision above missed it: its type has the sort Prop, but the
+      sort of a type convertible to it is not known to be Prop, the
+      uniqueness of the sorts of types up to conversion being unproved;
+    - the other constants stay constants.
     The function never infers the type of a λ or of a pair: it only asks
     the types of what synthesizes.
 
@@ -38,7 +45,10 @@
     keeps its parameters, indices, constructors with the shape of their
     fields, and its kind of elimination; an instance its kind; a
     δ-constant its body erased at its type.  An instance without active
-    rules is an assumption without computation and is refused.
+    rules is an assumption without computation and is refused.  The
+    primitives of the target lie below the erased entries and are looked
+    up by name, so a declaration under the name of one of them would
+    shadow it: it is refused ([XReserved]).
 
     [strict] is [true] for erasure proper.  With [false] it is the
     demonstration of BypassElim (stage 2): an elimination of a proposition
@@ -63,7 +73,8 @@ Inductive erase_error : Type :=
 | XShape : term -> term -> erase_error            (** a term and its type, of another shape *)
 | XIllegalElim : String.string -> sort -> erase_error   (** an elimination its category forbids *)
 | XUnsupported : term -> erase_error              (** a term erasure does not expect *)
-| XInactive : String.string -> sort -> erase_error.     (** an instance without its rules *)
+| XInactive : String.string -> sort -> erase_error      (** an instance without its rules *)
+| XReserved : String.string -> erase_error.             (** a declaration under the name of a primitive *)
 
 Inductive erase_failure : Type :=
 | Fail : erase_error -> erase_failure
@@ -107,6 +118,10 @@ Definition erase_ind (d : ind_desc) : eind :=
     (map (fun c => mk_ector (ctor_name c) (map efield_of (ctor_fields c))) (ind_ctors d))
     (kind_of d).
 
+(** The names of the primitive families of the target, reserved. *)
+Definition reserved_name (D : String.string) : bool :=
+  String.eqb D prim_unit || String.eqb D prim_bool || String.eqb D prim_void.
+
 Section Erase.
   Variable Sp : spec.
   Variable sg : signature.
@@ -116,8 +131,17 @@ Section Erase.
   Local Notation E A := (result erase_failure A).
 
   Definition infer_e (G : ctx) (t : term) : E term :=
-    match snd (run_traced (infer Sp sg fuel G t)) with
+    match run_result (infer Sp sg fuel G t) with
     | Ok A => Ok A
+    | Err (Reject e) => Err (Fail (XIllTyped t e))
+    | Err (NoFuel u) => Err (Short AtType u)
+    end.
+
+  (** The types of an application and of its prefixes, outermost first,
+      with the answer of [infer_e] on it ([infer_spine] of PTS.Check). *)
+  Definition infer_spine_e (G : ctx) (t : term) : E (list term) :=
+    match run_result (infer_spine Sp sg fuel G t) with
+    | Ok As => Ok As
     | Err (Reject e) => Err (Fail (XIllTyped t e))
     | Err (NoFuel u) => Err (Short AtType u)
     end.
@@ -149,7 +173,10 @@ Section Erase.
       without inferring its subterms: a sort by its axiom, Π and Σ by the
       rules of the table, a family of the signature by the sort of its
       description, a neutral spine by the type of its head applied to
-      its arguments, a match by its motive. *)
+      its arguments, a match by its motive.  For a match the type of the
+      scrutinee must unfold to its family applied to parameters and
+      indices, as for erasing a match ([params_e]): the indices are read
+      off this form. *)
 
   Definition head_type (G : ctx) (h : term) : E term :=
     match h with
@@ -212,9 +239,13 @@ Section Erase.
                 | Some d =>
                     let* X := infer_e G x in
                     let* XV := whnf_e AtSort X in
-                    let us := skipn (length (ind_params d)) (spine_args XV) in
-                    let* K := instantiate (apps P (us ++ [x])) (spine_args V) in
-                    sort_at T K
+                    let p := length (ind_params d) in
+                    let xs := spine_args XV in
+                    if term_eqb (spine_head XV) (Const (Ind D)) &&
+                       Nat.eqb (length xs) (p + length (ind_indices d)) then
+                      let* K := instantiate (apps P (skipn p xs ++ [x])) (spine_args V) in
+                      sort_at T K
+                    else Err (Fail (XShape x XV))
                 | None => bad
                 end
             | h =>
@@ -255,6 +286,27 @@ Section Erase.
     then Ok (firstn p args)
     else Err (Fail (XShape x V)).
 
+  (** An application [f] at [F], the types [Fs] of its prefixes known
+      ([infer_spine_e]): what [erase] does on it, by [er], without
+      inferring the type of each prefix again.  For a spine of n
+      arguments the head is inferred once, not n times. *)
+  Fixpoint erase_spine (er : ctx -> term -> term -> E eterm) (G : ctx) (f F : term) (Fs : list term)
+    {struct f} : E eterm :=
+    match f with
+    | App f1 a1 =>
+        let* b := erasable G F in
+        if b then Ok EBox else
+        match Fs with
+        | F1 :: Fs1 =>
+            let* p := as_pi_e f1 F1 in
+            let* f1' := erase_spine er G f1 F1 Fs1 in
+            let* a1' := er G a1 (fst p) in
+            Ok (EApp f1' a1')
+        | [] => Err (Fail (XUnsupported f))
+        end
+    | _ => er G f F
+    end.
+
   (** The branches, one per constructor. *)
   Fixpoint erase_each (t : term) (f : ctor_desc -> term -> E eterm) (cs : list ctor_desc) (bs : list term)
     {struct bs} : E (list eterm) :=
@@ -274,15 +326,19 @@ Section Erase.
         let* b' := erase (fst p :: G) b (snd p) in
         Ok (ELam b')
     | App f a =>
-        let* F := infer_e G f in
-        let* p := as_pi_e f F in
-        let* f' := erase G f F in
-        let* a' := erase G a (fst p) in
-        Ok (EApp f' a')
+        let* Fs := infer_spine_e G f in
+        match Fs with
+        | F :: Fs' =>
+            let* p := as_pi_e f F in
+            let* f' := erase_spine erase G f F Fs' in
+            let* a' := erase G a (fst p) in
+            Ok (EApp f' a')
+        | [] => Err (Fail (XUnsupported t))
+        end
     | Ann u A => erase G u A
     | Const (Def f) => Ok (EConst f)
     | Const (Ctor D c) => Ok (ECtor D c)
-    | Const (Elim D s) => Ok (EPrim D s)
+    | Const (Elim D s) => if sort_eqb s Prp then Ok EBox else Ok (EPrim D s)
     | Tt => Ok (ECtor prim_unit "tt")
     | BTrue => Ok (ECtor prim_bool "true")
     | BFalse => Ok (ECtor prim_bool "false")
@@ -339,7 +395,7 @@ Section Erase.
 
   Definition erase_entry (e : entry) : E eentry :=
     match e with
-    | EInd d => Ok (EEInd (erase_ind d))
+    | EInd d => if reserved_name (ind_name d) then Err (Fail (XReserved (ind_name d))) else Ok (EEInd (erase_ind d))
     | EElim D s _ act =>
         if negb act then Err (Fail (XInactive D s)) else
         match sig_ind sg D with
@@ -366,8 +422,10 @@ Section Erase.
 
       [□] is chosen for a term whose type unfolds to an arity, or whose
       type has the sort Prop by [sort_of_e].  That this sort is the one
-      the annotated kernel gives the type is part of the open obligation
-      of the consistency of erasure with the rules (Contracts.v). *)
+      the declarative rules give the type is proved in
+      Erasure/EraseSound.v ([erasure_decision_consistent_holds] of
+      Contracts.v), and so is the soundness of [erase] for the relation
+      of erasure ([erasure_sound_holds]). *)
 
   Inductive arity : term -> Prop :=
   | Ar_Sort : forall T s, red sg T (Srt s) -> arity T
@@ -383,8 +441,39 @@ Section Erase.
   Lemma infer_e_sound : forall G t A, infer_e G t = Ok A -> synth Sp sg G t A.
   Proof.
     intros G t A H. unfold infer_e in H.
-    destruct (snd (run_traced (infer Sp sg fuel G t))) as [A' | [e | u]] eqn:E; try discriminate H.
-    injection H as <-. apply run_traced_ok in E as [log E]. exact (infer_sound Sp sg fuel G t [] log A' E).
+    destruct (run_result (infer Sp sg fuel G t)) as [A' | [e | u]] eqn:E; try discriminate H.
+    injection H as <-. apply run_result_ok in E as [log E]. exact (infer_sound Sp sg fuel G t [] log A' E).
+  Qed.
+
+  Lemma infer_spine_e_ok : forall G t As, infer_spine_e G t = Ok As -> run_result (infer_spine Sp sg fuel G t) = Ok As.
+  Proof.
+    intros G t As H. unfold infer_spine_e in H.
+    destruct (run_result (infer_spine Sp sg fuel G t)) as [As' | [e | u]]; try discriminate H. congruence.
+  Qed.
+
+  Lemma infer_spine_e_sound : forall G t A As, infer_spine_e G t = Ok (A :: As) -> synth Sp sg G t A.
+  Proof.
+    intros G t A As H. apply infer_spine_e_ok, run_result_ok in H as [log H].
+    exact (infer_spine_sound Sp sg fuel t G [] log A As H).
+  Qed.
+
+  (** The types of the prefixes of [App f u] are those of [f] after its
+      own. *)
+  Lemma infer_spine_e_app : forall G f u F Fs, infer_spine_e G (App f u) = Ok (F :: Fs) -> infer_spine_e G f = Ok Fs.
+  Proof.
+    intros G f u F Fs H. apply infer_spine_e_ok, run_result_ok in H as [log H]. cbn [infer_spine] in H.
+    tbind_in H Fs0 HFs0. destruct Fs0 as [|F0 Fs0]; [apply tret_ok in H; discriminate H | ].
+    tbind_in H p Hp. destruct p as [A B]. tbind_in H v Hv. apply tret_ok in H. injection H as _ ->.
+    unfold infer_spine_e, run_result. rewrite HFs0. reflexivity.
+  Qed.
+
+  (** [erase_spine] is [erase] on an application whose prefixes have the
+      types [infer_spine_e] gives. *)
+  Lemma erase_spine_erase : forall G f F Fs, infer_spine_e G f = Ok (F :: Fs) ->
+    erase_spine erase G f F Fs = erase G f F.
+  Proof.
+    intros G f F Fs H. destruct f; try reflexivity.
+    apply infer_spine_e_app in H. cbn [erase_spine erase]. rewrite H. reflexivity.
   Qed.
 
   Lemma is_arity_sound : forall n T, is_arity n T = Ok true -> arity T.
@@ -412,7 +501,7 @@ Section Erase.
     forall f b', e' = EEDef f b' -> exists A b, e = EDef f A b /\ erase [] b A = Ok b'.
   Proof.
     intros e e' H f b' ->. destruct e as [d | D s T act | g A b]; cbn [erase_entry] in H.
-    - discriminate H.
+    - destruct (reserved_name _); discriminate H.
     - destruct (negb act); [discriminate H | ].
       destruct (sig_ind sg D); [ | discriminate H].
       destruct (sort_eqb s Prp); [discriminate H | ].
@@ -421,10 +510,10 @@ Section Erase.
   Qed.
 
   Lemma erase_entry_ind : forall e e', erase_entry e = Ok e' ->
-    forall d', e' = EEInd d' -> exists d, e = EInd d /\ d' = erase_ind d.
+    forall d', e' = EEInd d' -> exists d, e = EInd d /\ d' = erase_ind d /\ reserved_name (ind_name d) = false.
   Proof.
     intros e e' H d' ->. destruct e as [d | D s T act | g A b]; cbn [erase_entry] in H.
-    - injection H as <-. eauto.
+    - destruct (reserved_name (ind_name d)) eqn:Er; [discriminate H | ]. injection H as <-. eauto.
     - destruct (negb act); [discriminate H | ].
       destruct (sig_ind sg D); [ | discriminate H].
       destruct (sort_eqb s Prp); [discriminate H | ].
@@ -439,9 +528,9 @@ Section Erase.
     cbn [erase_entries] in H. apply bind_ok in H as (se' & Hse' & H).
     apply bind_ok in H as (e' & He' & H). injection H as <-.
     destruct e' as [d' | D' s' k' | g b''] eqn:Ee'.
-    - destruct (erase_entry_ind _ _ He' _ eq_refl) as (d & -> & _). cbn in Hf |- *. exact (IH _ Hse' _ _ _ Hf).
+    - destruct (erase_entry_ind _ _ He' _ eq_refl) as (d & -> & _ & _). cbn in Hf |- *. exact (IH _ Hse' _ _ _ Hf).
     - destruct e as [d | D s T act | g A' b']; cbn [find_def] in Hf.
-      + cbn in He'. discriminate He'.
+      + cbn in He'. destruct (reserved_name _); discriminate He'.
       + cbn. exact (IH _ Hse' _ _ _ Hf).
       + cbn in He'. apply bind_ok in He' as (x & _ & He'). discriminate He'.
     - destruct (erase_entry_def _ _ He' _ _ eq_refl) as (A' & b' & -> & Hb). cbn [find_def efind_def] in Hf |- *.
@@ -455,15 +544,34 @@ Section Erase.
     cbn [erase_entries] in H. apply bind_ok in H as (se' & Hse' & H).
     apply bind_ok in H as (e' & He' & H). injection H as <-.
     destruct e' as [d' | D' s' k' | g b''] eqn:Ee'.
-    - destruct (erase_entry_ind _ _ He' _ eq_refl) as (d0 & -> & ->). cbn [find_ind efind_ind] in Hd |- *.
+    - destruct (erase_entry_ind _ _ He' _ eq_refl) as (d0 & -> & -> & _). cbn [find_ind efind_ind] in Hd |- *.
       unfold erase_ind at 1. cbn [eind_name].
       destruct (String.eqb (ind_name d0) D); [injection Hd as <-; reflexivity | exact (IH _ Hse' _ _ Hd)].
     - destruct e as [d0 | D0 s T act | g A' b']; cbn [find_ind] in Hd.
-      + cbn in He'. discriminate He'.
+      + cbn in He'. destruct (reserved_name _); discriminate He'.
       + cbn. exact (IH _ Hse' _ _ Hd).
       + cbn in He'. apply bind_ok in He' as (x & _ & He'). discriminate He'.
     - destruct (erase_entry_def _ _ He' _ _ eq_refl) as (A' & b' & -> & Hb). cbn [find_ind efind_ind] in Hd |- *.
       exact (IH _ Hse' _ _ Hd).
+  Qed.
+
+  (** No declaration shadows a primitive: the primitives are found in the
+      erased signature as in [prim_entries]. *)
+  Theorem erase_entries_prims : forall es se, erase_entries es = Ok se ->
+    forall D, reserved_name D = true -> efind_ind se D = efind_ind prim_entries D.
+  Proof.
+    induction es as [|e es IH]; intros se H D HD.
+    - cbn [erase_entries] in H. injection H as <-. reflexivity.
+    - cbn [erase_entries] in H. apply bind_ok in H as (se' & Hse' & H).
+      apply bind_ok in H as (e' & He' & H). injection H as <-.
+      destruct e' as [d' | D' s' k' | g b''].
+      + destruct (erase_entry_ind _ _ He' _ eq_refl) as (d0 & -> & -> & Hr).
+        unfold erase_ind. cbn [efind_ind eind_name].
+        destruct (String.eqb (ind_name d0) D) eqn:E.
+        * apply String.eqb_eq in E. subst D. rewrite Hr in HD. discriminate HD.
+        * exact (IH _ Hse' _ HD).
+      + cbn [efind_ind]. exact (IH _ Hse' _ HD).
+      + cbn [efind_ind]. exact (IH _ Hse' _ HD).
   Qed.
 End Erase.
 
@@ -474,6 +582,14 @@ Definition erase_term (S : spec) (sg : signature) (fuel : nat) (G : ctx) (t T : 
 
 Definition erase_env (S : spec) (sg : signature) (fuel : nat) : erase_result esignature :=
   to_erase_result (erase_env_e S sg fuel true).
+
+Corollary erase_env_prims : forall S sg fuel se, erase_env S sg fuel = Erased se ->
+  forall D, reserved_name D = true -> efind_ind se D = efind_ind prim_entries D.
+Proof.
+  intros S sg fuel se H D HD. unfold erase_env, to_erase_result in H.
+  destruct (erase_env_e S sg fuel true) as [se' | [e | st t]] eqn:E; try discriminate H.
+  injection H as ->. exact (erase_entries_prims S sg fuel true _ _ E D HD).
+Qed.
 
 (** The demonstration of BypassElim, outside the contract. *)
 Definition erase_term_bypassing (S : spec) (sg : signature) (fuel : nat) (G : ctx) (t T : term)

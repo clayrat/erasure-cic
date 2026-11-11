@@ -4,7 +4,8 @@
     the result of its erasure at an observable type, an explicit class of
     first-order data:
     - Bool and Unit of the minimal MLTT;
-    - ℕ, lists and vectors of the lectures, with their declarations;
+    - ℕ, lists and vectors of the lectures, with their declarations, ℕ
+      among them for vectors, whose lengths are observed;
     - pairs of observable components, and pairs of an observable witness
       and a proof in Prop.
     Functions, arbitrary families and W-trees with functional fields are
@@ -42,7 +43,8 @@ Section Observe.
   | O_Unit : forall T, T ⇝* Unit -> Observable T
   | O_Nat : forall T, T ⇝* NatT -> sig_ind sg "Nat" = Some nat_desc -> Observable T
   | O_List : forall T A, T ⇝* ListT A -> sig_ind sg "List" = Some list_desc -> Observable A -> Observable T
-  | O_Vec : forall T A n, T ⇝* VecT A n -> sig_ind sg "Vec" = Some vec_desc -> Observable A -> Observable T
+  | O_Vec : forall T A n, T ⇝* VecT A n -> sig_ind sg "Vec" = Some vec_desc -> sig_ind sg "Nat" = Some nat_desc ->
+      Observable A -> Observable T
   | O_Pair : forall T A B, T ⇝* Sigma A B -> Observable A -> (forall a, Observable (subst1 B a)) -> Observable T
   | O_Witness : forall T A B K, T ⇝* Sigma A B -> Observable A ->
       synth predicative_prop sg [A] B K -> K ⇝* Srt Prp -> Observable T.
@@ -142,9 +144,6 @@ Section Observe.
 
   (** ** Soundness *)
 
-  Lemma whnf_red' : forall T V, whnf sg fuel T = HeadForm V -> T ⇝* V.
-  Proof. intros T V H. exact (nsteps_red _ _ (whnf_reduces fuel T V H)). Qed.
-
   Lemma prop_family_sound : forall A B K, prop_family A B = Some K ->
     synth predicative_prop sg [A] B K /\ K ⇝* Srt Prp.
   Proof.
@@ -152,7 +151,7 @@ Section Observe.
     destruct (snd (run_infer predicative_prop sg fuel [A] B)) as [K'| |] eqn:E; try discriminate H.
     destruct (whnf sg fuel K') as [V|] eqn:W; try discriminate H.
     destruct V; try discriminate H. destruct s; try discriminate H. injection H as <-.
-    split; [exact (proj2 (run_infer_sound _ _ _ _ _ _ E)) | exact (whnf_red' _ _ W)].
+    split; [exact (proj2 (run_infer_sound _ _ _ _ _ _ E)) | exact (whnf_red sg fuel _ _ W)].
   Qed.
 
   Lemma classify_type_spec : forall V,
@@ -186,7 +185,7 @@ Section Observe.
   Proof.
     induction n as [|n IH]; intros T v w H; [discriminate H | ]. cbn [observes] in H.
     destruct (whnf sg fuel T) as [V|] eqn:W; [ | discriminate H].
-    apply whnf_red' in W. pose proof (classify_type_spec V) as Hs.
+    apply (whnf_red sg fuel) in W. pose proof (classify_type_spec V) as Hs.
     destruct (classify_type V) as [ | | | A | A m | A B | ]; try subst V.
     all: repeat match type of H with
          | match ?x with _ => _ end = true => destruct x; try discriminate H
